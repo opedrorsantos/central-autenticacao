@@ -1,118 +1,382 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Central de Autenticação Segura com MFA
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+API desenvolvida em **NestJS + TypeScript** para implementar um serviço de autenticação segura com **bcrypt, JWT, Refresh Token e MFA/TOTP compatível com Google Authenticator**.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Integrantes
 
-## Description
+- **João Pedro Rodrigues dos Santos**
+- **Lohany de Assis Rocha**
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## 1. Sobre o projeto
 
-## Project setup
+O projeto tem como objetivo desenvolver uma API de autenticação com mecanismos básicos de segurança para cadastro, login, renovação de tokens e autenticação multifator.
 
-```bash
-$ npm install
+A aplicação utiliza:
+
+- **NestJS** para construção da API;
+- **TypeScript** como linguagem;
+- **Prisma ORM** para acesso ao banco de dados;
+- **SQLite** como banco de dados;
+- **bcrypt** para armazenamento seguro de senhas;
+- **JWT** para autenticação baseada em tokens;
+- **Refresh Token** para renovação da sessão;
+- **TOTP/MFA** para autenticação em dois fatores;
+- **QR Code** para facilitar a configuração do autenticador;
+- **Swagger** para documentação e testes da API.
+
+## 2. Funcionalidades
+
+Atualmente, a API possui as seguintes funcionalidades:
+
+### Cadastro
+
+`POST /auth/register`
+
+Realiza o cadastro de um novo usuário.
+
+A senha não é armazenada diretamente no banco de dados. Antes do armazenamento, ela é transformada em hash utilizando bcrypt.
+
+Exemplo:
+
+```json
+{
+  "email": "usuario@email.com",
+  "senha": "Senha123!"
+}
 ```
 
-## Compile and run the project
+### Login
 
-```bash
-# development
-$ npm run start
+`POST /auth/login`
 
-# watch mode
-$ npm run start:dev
+Autentica um usuário utilizando e-mail e senha.
 
-# production mode
-$ npm run start:prod
+Quando os dados estão corretos, a API gera:
+
+- Access Token;
+- Refresh Token.
+
+O Access Token possui duração curta e é utilizado para acesso a recursos protegidos.
+
+O Refresh Token possui duração maior e pode ser utilizado para solicitar novos tokens.
+
+### Renovação de token
+
+`POST /auth/refresh`
+
+Recebe o Refresh Token e, caso ele seja válido, gera um novo Access Token e um novo Refresh Token.
+
+Exemplo:
+
+```json
+{
+  "refreshToken": "SEU_REFRESH_TOKEN"
+}
 ```
 
-## Run tests
+O Refresh Token também é armazenado no banco somente em formato de hash.
 
-```bash
-# unit tests
-$ npm run test
+### Configuração do MFA
 
-# e2e tests
-$ npm run test:e2e
+`POST /auth/mfa/setup`
 
-# test coverage
-$ npm run test:cov
+Gera um segredo TOTP e um QR Code para configuração do segundo fator de autenticação.
+
+O QR Code pode ser escaneado por aplicativos autenticadores compatíveis, como o Google Authenticator.
+
+### Verificação do MFA
+
+`POST /auth/mfa/verify`
+
+Recebe o código TOTP de 6 dígitos gerado pelo aplicativo autenticador.
+
+Exemplo:
+
+```json
+{
+  "codigo": "123456"
+}
 ```
 
-## Deployment
+Quando o código é válido, o MFA é ativado para o usuário.
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+### Rota de teste
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+`GET /auth`
 
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+Retorna uma mensagem simples para confirmar que o controller de autenticação está funcionando.
+
+## 3. Estrutura do projeto
+
+```text
+central-autenticacao/
+│
+├── prisma/
+│   └── schema.prisma
+│
+├── src/
+│   ├── auth/
+│   │   ├── dto/
+│   │   │   ├── login.dto.ts
+│   │   │   ├── mfa-verify.dto.ts
+│   │   │   ├── refresh.dto.ts
+│   │   │   └── register.dto.ts
+│   │   │
+│   │   ├── auth.controller.ts
+│   │   ├── auth.service.ts
+│   │   └── auth.module.ts
+│   │
+│   ├── prisma.module.ts
+│   ├── prisma.service.ts
+│   ├── app.module.ts
+│   └── main.ts
+│
+├── .env.example
+├── .gitignore
+├── package.json
+├── package-lock.json
+└── README.md
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+## 4. Modelo de usuário
 
-## Observability
+O banco possui a entidade `Usuario`, com os principais campos:
 
-In production applications, observability is essential for understanding how your system behaves, detecting issues early, and maintaining reliable performance.
+```text
+id
+email
+senha
+mfaAtivo
+mfaSecret
+refreshTokenHash
+criadoEm
+```
 
-[NestJS Observe](https://observe.nestjs.com) automatically instruments your NestJS application, giving you deep visibility into your system with minimal setup:
+- `id`: identificador do usuário;
+- `email`: e-mail único;
+- `senha`: hash da senha;
+- `mfaAtivo`: indica se o MFA foi ativado;
+- `mfaSecret`: segredo usado pelo TOTP;
+- `refreshTokenHash`: hash do Refresh Token válido;
+- `criadoEm`: data de criação do cadastro.
 
-- **Distributed tracing:** Follow requests across services and understand how they flow through your system.
-- **Waterfall analysis:** Visualize request execution and identify slow operations, bottlenecks, and unexpected delays.
-- **Performance analysis:** Analyze application performance in real time and quickly pinpoint areas that need optimization.
-- **Metrics:** Track key application and infrastructure metrics to understand system health and performance trends.
-- **Logging:** Centralize and correlate logs with traces and other telemetry to make debugging easier.
-- **Error tracking:** Detect errors quickly and investigate their root causes with the surrounding context.
-- **SLA monitoring:** Track service-level objectives and identify when your application is approaching or exceeding defined thresholds.
-- **Alarms and alerts:** Set up alerts for critical errors, performance degradation, SLA violations, and other anomalies so your team can react quickly.
+## 5. Tecnologias e dependências
 
-This project is already instrumented. Create a free account at [observe.nestjs.com](https://observe.nestjs.com), add an application, and paste the generated app key and secret into the `ObserveModule.forRoot()` call in `src/app.module.ts`.
+Principais tecnologias utilizadas:
 
-The free plan needs no payment details and covers 300,000 events a month. You can also browse the [live demo](https://www.observe-demo.nestjs.com/dashboard) first - the whole dashboard over a busy service's data, with nothing to install.
+```text
+Node.js
+NestJS
+TypeScript
+Prisma
+SQLite
+JWT
+bcrypt
+otplib
+QRCode
+Swagger
+```
 
-## Resources
+## 6. Requisitos
 
-Check out a few resources that may come in handy when working with NestJS:
+Antes de executar o projeto, é necessário ter instalado:
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Auto-instrument your application with [NestJS Observe](https://observe.nestjs.com). Distributed tracing, metrics, and logging made easy. Error tracking and performance monitoring for your NestJS applications.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+- Node.js;
+- npm;
+- Git.
 
-## Support
+Também é recomendado utilizar o VS Code para desenvolvimento.
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+## 7. Instalação
 
-## Stay in touch
+Clone o repositório:
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+```bash
+git clone https://github.com/SEU_USUARIO/central-autenticacao.git
+```
 
-## License
+Entre na pasta:
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+```bash
+cd central-autenticacao
+```
+
+Instale as dependências:
+
+```bash
+npm install
+```
+
+## 8. Configuração do ambiente
+
+Crie um arquivo `.env` na raiz do projeto.
+
+Exemplo:
+
+```env
+DATABASE_URL="file:./dev.db"
+JWT_ACCESS_SECRET="sua-chave-secreta-do-access-token"
+JWT_REFRESH_SECRET="sua-chave-secreta-do-refresh-token"
+```
+
+O arquivo `.env` não deve ser enviado para o GitHub.
+
+Utilize o `.env.example` como modelo para configuração.
+
+## 9. Banco de dados
+
+Execute as migrações do Prisma:
+
+```bash
+npx prisma migrate dev
+```
+
+Depois gere o cliente Prisma:
+
+```bash
+npx prisma generate
+```
+
+## 10. Executando o projeto
+
+Modo de desenvolvimento:
+
+```bash
+npm run start:dev
+```
+
+A API será executada por padrão em:
+
+```text
+http://localhost:3000
+```
+
+## 11. Swagger
+
+A documentação interativa da API está disponível em:
+
+```text
+http://localhost:3000/docs
+```
+
+No Swagger é possível visualizar as rotas, preencher os campos das requisições e executar os endpoints diretamente.
+
+## 12. Fluxo básico de utilização
+
+### 1. Criar usuário
+
+```text
+POST /auth/register
+```
+
+### 2. Realizar login
+
+```text
+POST /auth/login
+```
+
+O login retorna:
+
+```json
+{
+  "accessToken": "....",
+  "refreshToken": "...."
+}
+```
+
+### 3. Configurar MFA
+
+```text
+POST /auth/mfa/setup
+```
+
+A API retorna um QR Code que deve ser configurado em um aplicativo autenticador.
+
+### 4. Confirmar MFA
+
+```text
+POST /auth/mfa/verify
+```
+
+Enviar o código de 6 dígitos mostrado pelo aplicativo autenticador.
+
+### 5. Renovar tokens
+
+```text
+POST /auth/refresh
+```
+
+Enviar o Refresh Token recebido durante o login ou em uma renovação anterior.
+
+## 13. Segurança aplicada
+
+O projeto foi desenvolvido com alguns mecanismos de segurança:
+
+### Hash de senha
+
+As senhas são processadas com bcrypt antes de serem armazenadas.
+
+### JWT
+
+A autenticação utiliza tokens JWT para representar a sessão do usuário.
+
+### Access Token com expiração curta
+
+O Access Token possui validade reduzida, diminuindo o tempo de exposição caso seja comprometido.
+
+### Refresh Token
+
+O Refresh Token permite renovar a autenticação sem exigir que o usuário informe novamente a senha.
+
+### Hash do Refresh Token
+
+O Refresh Token armazenado no banco é representado por um hash, evitando manter o token em texto puro no banco de dados.
+
+### MFA/TOTP
+
+O segundo fator utiliza códigos temporários de 6 dígitos compatíveis com aplicativos autenticadores.
+
+## 14. Rotas da API
+
+| Método | Rota | Função |
+|---|---|---|
+| GET | `/auth` | Teste do controller |
+| POST | `/auth/register` | Cadastro de usuário |
+| POST | `/auth/login` | Autenticação |
+| POST | `/auth/refresh` | Renovação de tokens |
+| POST | `/auth/mfa/setup` | Configuração do MFA |
+| POST | `/auth/mfa/verify` | Verificação do MFA |
+
+## 15. Git e GitHub
+
+O projeto utiliza Git para controle de versão.
+
+Exemplo de fluxo utilizado:
+
+```bash
+git add .
+git commit -m "feat: implementa central de autenticacao segura"
+git push
+```
+
+Após cada nova funcionalidade ou correção, recomenda-se registrar um novo commit.
+
+Exemplos:
+
+```bash
+git commit -m "feat: adiciona renovacao de tokens"
+git commit -m "feat: implementa MFA com TOTP"
+git commit -m "fix: corrige autenticacao"
+git commit -m "docs: atualiza README"
+```
+
+## 16. Observações
+
+O projeto está sendo desenvolvido como atividade acadêmica, com foco no estudo de autenticação, segurança de aplicações, APIs REST, JWT e autenticação multifator.
+
+A rota `GET /auth/me`, prevista como etapa adicional do projeto, deve ser implementada em uma etapa posterior para retornar os dados do usuário autenticado a partir do JWT.
+
+## 17. Autores
+
+**João Pedro Rodrigues dos Santos**  
+**Lohany de Assis Rocha**
